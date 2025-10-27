@@ -14,7 +14,7 @@ from time import sleep
 from threading import Thread
 from random import random
 import os,re,argparse
-
+encoding=__import__('locale').getpreferredencoding()
 
 class Polluxer:
 
@@ -30,10 +30,15 @@ class Polluxer:
     # run command list.
     @staticmethod
     def read(aCmd,pipe,resultList):
-        output=pipe.read()
-        if output: reply=[aCmd,output]
-        else: reply=[aCmd,"command no echo."]
-        resultList.append(reply)
+        try:
+            output=pipe.buffer.read()
+            try: output=output.decode(encoding)
+            except UnicodeDecodeError: output=output.hex()
+            if output: reply=[aCmd,output]
+            else: reply=[aCmd,"command no echo."]
+            resultList.append(reply)
+        except Exception as e:
+            resultList.append( [aCmd,f"PolluxerError: {str(e)} "] )
         return None
     def runTasks(s,tasks):
         cmds=tasks['cmd']
@@ -47,7 +52,9 @@ class Polluxer:
             t.start()
             t.join(timeout=timeout)
             if t.is_alive():
-                result.append( [each,f"cmd '{each}' is running."] )
+                result.append( [each,f"NoEcho: cmd '{each}' is running."] )
+            else:
+                aPipe.close()
         return result
 
     # receive,dump,return command.
