@@ -25,14 +25,14 @@ class Polluxer:
         s.cmdGet=cmdGet
         s.echoGet=echoGet
         s.tasks={'updateMark':''} # then changed by update
-        s.initResult=[] # then changed by update
+        s.initResult={} # then changed by update
 
     # run command list.
     @staticmethod
-    def read(i,pipe,resultList):
+    def read(aCmd,pipe,resultList):
         output=pipe.read()
-        if output: reply={i:output}
-        else: reply={i:"command no echo."}
+        if output: reply=[aCmd,output]
+        else: reply=[aCmd,"command no echo."]
         resultList.append(reply)
         return None
     def runTasks(s,tasks):
@@ -41,15 +41,13 @@ class Polluxer:
             timeout=float( tasks['timeout'] )
             if timeout<0.2: timeout=0.2 # Limit to at least 0.2 or directly annotate the line.
         result=[]
-        i=0
         for each in cmds:
-            i+=1
             aPipe=os.popen(each)
-            t=Thread(target=Polluxer.read,args=(i,aPipe,result))
+            t=Thread(target=Polluxer.read,args=(each,aPipe,result))
             t.start()
             t.join(timeout=timeout)
             if t.is_alive():
-                result.append( {i:f"cmd '{each}' is running."} )
+                result.append( [each,f"cmd '{each}' is running."] )
         return result
 
     # receive,dump,return command.
@@ -74,8 +72,8 @@ class Polluxer:
         # first run
         result=s.updateCmd()
         if result['status']:
-            s.initResult.append( s.tasks['init'] )
-            s.initResult.append( s.runTasks(s.tasks['init']) )
+            s.initResult['getInit']=s.tasks['init']
+            s.initResult['initResult']=s.runTasks(s.tasks['init'])
             s.updateMark=s.tasks['updateMark']
             s.reply(s.initResult)
         else:
@@ -94,7 +92,8 @@ class Polluxer:
                     s.reply(result)
 
     def checkTasks(s):
-        tasksResult=s.runTasks(s.tasks['init'])
+        tasksResult={}
+        tasksResult['initResult']=s.runTasks(s.tasks['init'])
         s.updateMark=s.tasks['updateMark']
         s.reply(tasksResult)
 
